@@ -19,9 +19,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.DecodeUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.exception.BalanceInsufficientException;
@@ -44,7 +46,12 @@ public class TransferAssetActuator extends AbstractActuator {
   }
 
   @Override
-  public boolean execute(TransactionResultCapsule ret) throws ContractExeException {
+  public boolean execute(Object result) throws ContractExeException {
+    TransactionResultCapsule ret = (TransactionResultCapsule) result;
+    if (Objects.isNull(ret)) {
+      throw new RuntimeException(ActuatorConstant.TX_RESULT_NULL);
+    }
+
     long fee = calcFee();
     AccountStore accountStore = chainBaseManager.getAccountStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
@@ -85,10 +92,7 @@ public class TransferAssetActuator extends AbstractActuator {
       logger.debug(e.getMessage(), e);
       ret.setStatus(fee, code.FAILED);
       throw new ContractExeException(e.getMessage());
-    } catch (InvalidProtocolBufferException e) {
-      ret.setStatus(fee, code.FAILED);
-      throw new ContractExeException(e.getMessage());
-    } catch (ArithmeticException e) {
+    } catch (InvalidProtocolBufferException | ArithmeticException e) {
       ret.setStatus(fee, code.FAILED);
       throw new ContractExeException(e.getMessage());
     }
@@ -99,10 +103,10 @@ public class TransferAssetActuator extends AbstractActuator {
   @Override
   public boolean validate() throws ContractValidateException {
     if (this.any == null) {
-      throw new ContractValidateException("No contract!");
+      throw new ContractValidateException(ActuatorConstant.CONTRACT_NOT_EXIST);
     }
     if (chainBaseManager == null) {
-      throw new ContractValidateException("No account store or dynamic store!");
+      throw new ContractValidateException(ActuatorConstant.STORE_NOT_EXIST);
     }
     AccountStore accountStore = chainBaseManager.getAccountStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
@@ -127,15 +131,13 @@ public class TransferAssetActuator extends AbstractActuator {
     byte[] assetName = transferAssetContract.getAssetName().toByteArray();
     long amount = transferAssetContract.getAmount();
 
-    if (!Commons.addressValid(ownerAddress)) {
+    if (!DecodeUtil.addressValid(ownerAddress)) {
       throw new ContractValidateException("Invalid ownerAddress");
     }
-    if (!Commons.addressValid(toAddress)) {
+    if (!DecodeUtil.addressValid(toAddress)) {
       throw new ContractValidateException("Invalid toAddress");
     }
-//    if (!TransactionUtil.validAssetName(assetName)) {
-//      throw new ContractValidateException("Invalid assetName");
-//    }
+
     if (amount <= 0) {
       throw new ContractValidateException("Amount must be greater than 0.");
     }
@@ -174,8 +176,8 @@ public class TransferAssetActuator extends AbstractActuator {
 
     AccountCapsule toAccount = accountStore.get(toAddress);
     if (toAccount != null) {
-      //after TvmSolidity059 proposal, send trx to smartContract by actuator is not allowed.
-      if (dynamicStore.getAllowTvmSolidity059() == 1
+      //after ForbidTransferToContract proposal, send trx to smartContract by actuator is not allowed.
+      if (dynamicStore.getForbidTransferToContract() == 1
           && toAccount.getType() == AccountType.Contract) {
         throw new ContractValidateException("Cannot transfer asset to smartContract.");
       }

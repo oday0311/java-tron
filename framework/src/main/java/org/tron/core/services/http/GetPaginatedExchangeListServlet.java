@@ -1,7 +1,6 @@
 package org.tron.core.services.http;
 
 import java.io.IOException;
-import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +10,6 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.core.Wallet;
 
-
 @Component
 @Slf4j(topic = "API")
 public class GetPaginatedExchangeListServlet extends RateLimiterServlet {
@@ -20,30 +18,35 @@ public class GetPaginatedExchangeListServlet extends RateLimiterServlet {
   private Wallet wallet;
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-
+    try {
+      boolean visible = Util.getVisible(request);
+      long offset = Long.parseLong(request.getParameter("offset"));
+      long limit = Long.parseLong(request.getParameter("limit"));
+      fillResponse(offset, limit, visible, response);
+    } catch (Exception e) {
+      Util.processError(e, response);
+    }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
       PaginatedMessage.Builder build = PaginatedMessage.newBuilder();
-      JsonFormat.merge(input, build, visible);
-      ExchangeList reply = wallet.getPaginatedExchangeList(build.getOffset(), build.getLimit());
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      JsonFormat.merge(params.getParams(), build, params.isVisible());
+      fillResponse(build.getOffset(), build.getLimit(), params.isVisible(), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
+
+  private void fillResponse(long offset, long limit, boolean visible, HttpServletResponse response)
+      throws IOException {
+    ExchangeList reply = wallet.getPaginatedExchangeList(offset, limit);
+    if (reply != null) {
+      response.getWriter().println(JsonFormat.printToString(reply, visible));
+    } else {
+      response.getWriter().println("{}");
+    }
+  }
+
 }

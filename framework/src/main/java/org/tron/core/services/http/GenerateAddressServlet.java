@@ -1,16 +1,17 @@
 package org.tron.core.services.http;
 
 import com.alibaba.fastjson.JSONObject;
-import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.stereotype.Component;
-import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.Utils;
-import org.tron.core.Wallet;
+import org.tron.core.config.args.Args;
 
 
 @Component
@@ -19,11 +20,12 @@ public class GenerateAddressServlet extends RateLimiterServlet {
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
-      ECKey ecKey = new ECKey(Utils.getRandom());
-      byte[] priKey = ecKey.getPrivKeyBytes();
-      byte[] address = ecKey.getAddress();
+      SignInterface sign = SignUtils.getGeneratedRandomSign(Utils.getRandom(),
+          Args.getInstance().isECKeyCryptoEngine());
+      byte[] priKey = sign.getPrivateKey();
+      byte[] address = sign.getAddress();
       String priKeyStr = Hex.encodeHexString(priKey);
-      String base58check = Wallet.encode58Check(address);
+      String base58check = StringUtil.encode58Check(address);
       String hexString = ByteArray.toHexString(address);
       JSONObject jsonAddress = new JSONObject();
       jsonAddress.put("address", base58check);
@@ -31,12 +33,7 @@ public class GenerateAddressServlet extends RateLimiterServlet {
       jsonAddress.put("privateKey", priKeyStr);
       response.getWriter().println(jsonAddress.toJSONString());
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 

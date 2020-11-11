@@ -2,10 +2,13 @@ package org.tron.core.capsule;
 
 import com.google.protobuf.ByteString;
 import java.io.File;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Test;
+import org.testng.Assert;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
@@ -17,6 +20,9 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.Manager;
 import org.tron.protos.Protocol.AccountType;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Result;
+import org.tron.protos.Protocol.Transaction.Result.contractResult;
 
 @Slf4j
 public class TransactionCapsuleTest {
@@ -384,7 +390,7 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     } catch (PermissionException e) {
       Assert.assertEquals(e.getMessage(),
-          Wallet.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_11)) + " has signed twice!");
+          WalletUtil.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_11)) + " has signed twice!");
     } catch (SignatureFormatException e) {
       Assert.assertFalse(true);
     }
@@ -485,7 +491,8 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     } catch (PermissionException e) {
       Assert.assertEquals(e.getMessage(),
-          KEY_11 + "'s address is " + Wallet.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_11))
+          KEY_11 + "'s address is " + WalletUtil
+          .encode58Check(ByteArray.fromHexString(KEY_ADDRESS_11))
               + " but it is not contained of permission.");
     } catch (SignatureException e) {
       Assert.assertFalse(true);
@@ -519,7 +526,7 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     } catch (PermissionException e) {
       Assert.assertEquals(e.getMessage(),
-          Wallet.encode58Check(ByteArray.fromHexString(OWNER_ADDRESS)) + " had signed!");
+          WalletUtil.encode58Check(ByteArray.fromHexString(OWNER_ADDRESS)) + " had signed!");
     } catch (SignatureException e) {
       Assert.assertFalse(true);
     } catch (SignatureFormatException e) {
@@ -839,7 +846,7 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     } catch (PermissionException e) {
       Assert.assertEquals(e.getMessage(),
-          Wallet.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_21)) + " has signed twice!");
+          WalletUtil.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_21)) + " has signed twice!");
     } catch (SignatureFormatException e) {
       Assert.assertFalse(true);
     }
@@ -1027,7 +1034,7 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     } catch (ValidateSignatureException e) {
       Assert.assertEquals(e.getMessage(),
-          Wallet.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_21)) + " has signed twice!");
+          WalletUtil.encode58Check(ByteArray.fromHexString(KEY_ADDRESS_21)) + " has signed twice!");
     }
 
     //
@@ -1068,4 +1075,17 @@ public class TransactionCapsuleTest {
       Assert.assertFalse(true);
     }
   }*/
+
+  @Test
+  public void trxCapsuleClearTest() {
+    Transaction tx = Transaction.newBuilder()
+        .addRet(Result.newBuilder().setContractRet(contractResult.OUT_OF_TIME).build()).build();
+    TransactionCapsule trxCap = new TransactionCapsule(tx);
+    Result.contractResult contractResult = trxCap.getContractResult();
+    trxCap.resetResult();
+    Assert.assertEquals(trxCap.getInstance().getRetCount(), 0);
+    trxCap.setResultCode(contractResult);
+    Assert.assertEquals(trxCap.getInstance()
+        .getRet(0).getContractRet(), contractResult.OUT_OF_TIME);
+  }
 }

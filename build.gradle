@@ -1,17 +1,16 @@
 allprojects {
+    version = "1.0.0"
     apply plugin: "java"
 }
 
 subprojects {
+    apply plugin: "java"
     apply plugin: "jacoco"
     apply plugin: "maven"
     apply plugin: "maven-publish"
 
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-
-    group 'tronprotocol'
-    version '1.0.0'
 
     [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
@@ -30,7 +29,7 @@ subprojects {
     repositories {
         mavenLocal()
         mavenCentral()
-        maven { url 'http://repo.spring.io/plugins-release' }
+        maven { url 'https://repo.spring.io/plugins-release' }
         maven { url 'https://jitpack.io' }
     }
 
@@ -57,8 +56,13 @@ subprojects {
     }
 
     artifacts {
-        archives jar
+//        archives jar
         archives sourcesJar
+    }
+
+    tasks.withType(AbstractArchiveTask) {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
     }
 }
 
@@ -70,3 +74,4 @@ task copyToParent(type: Copy) {
 }
 
 build.finalizedBy(copyToParent)
+

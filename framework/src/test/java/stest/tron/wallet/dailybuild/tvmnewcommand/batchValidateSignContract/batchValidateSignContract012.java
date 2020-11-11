@@ -18,8 +18,9 @@ import org.testng.annotations.Test;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.Hash;
+import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.Wallet;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -92,16 +93,16 @@ public class batchValidateSignContract012 {
       ECKey key = new ECKey();
       byte[] sign = key.sign(hash).toByteArray();
       signatures.add(Hex.toHexString(sign));
-      addresses.add(Wallet.encode58Check(key.getAddress()));
+      addresses.add(StringUtil.encode58Check(key.getAddress()));
     }
     List<Object> parameters = Arrays.asList("0x" + Hex.toHexString(hash), signatures, addresses);
     String argsStr = PublicMethed.parametersString(parameters);
 
     String input = AbiUtil.parseParameters("batchvalidatesign(bytes32,bytes[],address[])", argsStr);
     String method = "testArray2(bytes)";
-    txid = PublicMethed.triggerContract(contractAddress, method,
+    txid = PublicMethed.triggerContractBoth(contractAddress, method,
         AbiUtil.parseParameters(method, Arrays.asList(input)), true, 0, maxFeeLimit,
-        contractExcAddress, contractExcKey, blockingStubFull);
+        contractExcAddress, contractExcKey, blockingStubFull, blockingStubFull1);
     PublicMethed.getTransactionById(txid, blockingStubFull);
     PublicMethed.waitProduceNextBlock(blockingStubFull);
     Optional<TransactionInfo> infoById = null;
@@ -126,7 +127,7 @@ public class batchValidateSignContract012 {
       ECKey key = new ECKey();
       byte[] sign = key.sign(hash).toByteArray();
       signatures.add(Hex.toHexString(sign));
-      addresses.add(Wallet.encode58Check(key.getAddress()));
+      addresses.add(StringUtil.encode58Check(key.getAddress()));
     }
     byte[] sign = new ECKey().sign(Hash.sha3("sdifhsdfihyw888w7".getBytes())).toByteArray();
     signatures.set(0, Hex.toHexString(sign));
@@ -135,9 +136,9 @@ public class batchValidateSignContract012 {
 
     String input = AbiUtil.parseParameters("batchvalidatesign(bytes32,bytes[],address[])", argsStr);
     String method = "testArray2(bytes)";
-    txid = PublicMethed.triggerContract(contractAddress, method,
+    txid = PublicMethed.triggerContractBoth(contractAddress, method,
         AbiUtil.parseParameters(method, Arrays.asList(input)), true, 0, maxFeeLimit,
-        contractExcAddress, contractExcKey, blockingStubFull);
+        contractExcAddress, contractExcKey, blockingStubFull, blockingStubFull1);
     PublicMethed.getTransactionById(txid, blockingStubFull);
     PublicMethed.waitProduceNextBlock(blockingStubFull);
     Optional<TransactionInfo> infoById = null;

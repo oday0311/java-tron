@@ -30,48 +30,31 @@ public class GetDelegatedResourceServlet extends RateLimiterServlet {
         fromAddress = Util.getHexAddress(fromAddress);
         toAddress = Util.getHexAddress(toAddress);
       }
-
-      DelegatedResourceList reply =
-          wallet.getDelegatedResource(
-              ByteString.copyFrom(ByteArray.fromHexString(fromAddress)),
-              ByteString.copyFrom(ByteArray.fromHexString(toAddress)));
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      fillResponse(visible, ByteString.copyFrom(ByteArray.fromHexString(fromAddress)),
+          ByteString.copyFrom(ByteArray.fromHexString(toAddress)), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input =
-          request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
       DelegatedResourceMessage.Builder build = DelegatedResourceMessage.newBuilder();
-      JsonFormat.merge(input, build, visible);
-      DelegatedResourceList reply =
-          wallet.getDelegatedResource(build.getFromAddress(), build.getToAddress());
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      JsonFormat.merge(params.getParams(), build, params.isVisible());
+      fillResponse(params.isVisible(), build.getFromAddress(), build.getToAddress(), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
+    }
+  }
+
+  private void fillResponse(boolean visible, ByteString fromAddress, ByteString toAddress,
+      HttpServletResponse response) throws IOException {
+    DelegatedResourceList reply = wallet.getDelegatedResource(fromAddress, toAddress);
+    if (reply != null) {
+      response.getWriter().println(JsonFormat.printToString(reply, visible));
+    } else {
+      response.getWriter().println("{}");
     }
   }
 }

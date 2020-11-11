@@ -1,7 +1,6 @@
 package org.tron.core.services.http;
 
 import com.google.protobuf.ByteString;
-import java.io.IOException;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -24,45 +23,30 @@ public class GetExpandedSpendingKeyServlet extends RateLimiterServlet {
     try {
       boolean visible = Util.getVisible(request);
       String sk = request.getParameter("value");
-      ExpandedSpendingKeyMessage reply = wallet
-          .getExpandedSpendingKey(ByteString.copyFrom(ByteArray.fromHexString(sk)));
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      fillResponse(visible, ByteString.copyFrom(ByteArray.fromHexString(sk)), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
       BytesMessage.Builder build = BytesMessage.newBuilder();
-      JsonFormat.merge(input, build);
-
-      ExpandedSpendingKeyMessage reply = wallet.getExpandedSpendingKey(build.getValue());
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      JsonFormat.merge(params.getParams(), build);
+      fillResponse(params.isVisible(), build.getValue(), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
+    }
+  }
+
+  private void fillResponse(boolean visible, ByteString spendingKey, HttpServletResponse response)
+      throws Exception {
+    ExpandedSpendingKeyMessage reply = wallet.getExpandedSpendingKey(spendingKey);
+    if (reply != null) {
+      response.getWriter().println(JsonFormat.printToString(reply, visible));
+    } else {
+      response.getWriter().println("{}");
     }
   }
 }

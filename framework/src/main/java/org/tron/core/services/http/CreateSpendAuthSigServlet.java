@@ -1,7 +1,5 @@
 package org.tron.core.services.http;
 
-import java.io.IOException;
-import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -25,23 +23,13 @@ public class CreateSpendAuthSigServlet extends RateLimiterServlet {
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
-
+      PostParams params = PostParams.getPostParams(request);
       SpendAuthSigParameters.Builder build = SpendAuthSigParameters.newBuilder();
-      JsonFormat.merge(input, build);
-
+      JsonFormat.merge(params.getParams(), build);
       BytesMessage result = wallet.createSpendAuthSig(build.build());
-      response.getWriter().println(JsonFormat.printToString(result, visible));
+      response.getWriter().println(JsonFormat.printToString(result, params.isVisible()));
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 }

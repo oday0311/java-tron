@@ -1,6 +1,6 @@
 package org.tron.common.runtime;
 
-import static org.tron.core.vm.utils.MUtil.convertToTronAddress;
+import static org.tron.core.db.TransactionTrace.convertToTronAddress;
 
 import java.io.File;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +14,7 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.storage.DepositImpl;
 import org.tron.common.utils.FileUtil;
+import org.tron.common.utils.WalletUtil;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
 import org.tron.core.config.DefaultConfig;
@@ -40,7 +41,7 @@ public class RuntimeTransferComplexTest {
   private static DepositImpl deposit;
 
   static {
-    Args.setParam(new String[] {"--output-directory", dbPath, "--debug"}, Constant.TEST_CONF);
+    Args.setParam(new String[]{"--output-directory", dbPath, "--debug"}, Constant.TEST_CONF);
     context = new TronApplicationContext(DefaultConfig.class);
     appT = ApplicationFactory.create(context);
     OWNER_ADDRESS = Wallet.getAddressPreFixString() + "abd4b9367799eaa3197fecb144eb71de1e049abc";
@@ -67,8 +68,6 @@ public class RuntimeTransferComplexTest {
   @AfterClass
   public static void destroy() {
     Args.clearParam();
-    appT.shutdownServices();
-    appT.shutdown();
     context.destroy();
     if (FileUtil.deleteDir(new File(dbPath))) {
       logger.info("Release resources successful.");
@@ -99,7 +98,7 @@ public class RuntimeTransferComplexTest {
     Transaction trx = TvmTestUtils
         .generateDeploySmartContractAndGetTransaction(contractName, address, ABI, code, value, fee,
             consumeUserResourcePercent, null);
-    byte[] contractAddress = Wallet.generateContractAddress(trx);
+    byte[] contractAddress = WalletUtil.generateContractAddress(trx);
     runtime = TvmTestUtils.processTransactionAndReturnRuntime(trx, deposit, null);
     Assert.assertNull(runtime.getRuntimeError());
     Assert.assertEquals(dbManager.getAccountStore().get(contractAddress).getBalance(), 100);
@@ -130,7 +129,7 @@ public class RuntimeTransferComplexTest {
     Transaction trx = TvmTestUtils
         .generateDeploySmartContractAndGetTransaction(contractName, address, ABI, code, value, fee,
             consumeUserResourcePercent, null);
-    byte[] contractAddress = Wallet.generateContractAddress(trx);
+    byte[] contractAddress = WalletUtil.generateContractAddress(trx);
     runtime = TvmTestUtils.processTransactionAndReturnRuntime(trx, deposit, null);
     Assert.assertNotNull(runtime.getRuntimeError().contains("REVERT"));
     Assert.assertNull(dbManager.getAccountStore().get(contractAddress));

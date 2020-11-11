@@ -20,8 +20,9 @@ import org.tron.common.overlay.message.Message;
 import org.tron.common.overlay.server.Channel;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.core.Constant;
 import org.tron.core.capsule.BlockCapsule.BlockId;
-import org.tron.core.config.Parameter.NodeConstant;
+import org.tron.core.config.Parameter.NetConstants;
 import org.tron.core.net.TronNetDelegate;
 import org.tron.core.net.service.AdvService;
 import org.tron.core.net.service.SyncService;
@@ -75,7 +76,7 @@ public class PeerConnection extends Channel {
   private volatile long remainNum;
   @Getter
   private Cache<Sha256Hash, Long> syncBlockIdCache = CacheBuilder.newBuilder()
-      .maximumSize(2 * NodeConstant.SYNC_FETCH_BATCH_NUM).recordStats().build();
+      .maximumSize(2 * NetConstants.SYNC_FETCH_BATCH_NUM).recordStats().build();
   @Setter
   @Getter
   private Deque<BlockId> syncBlockToFetch = new ConcurrentLinkedDeque<>();
@@ -90,10 +91,10 @@ public class PeerConnection extends Channel {
   private Set<BlockId> syncBlockInProcess = new HashSet<>();
   @Setter
   @Getter
-  private volatile boolean needSyncFromPeer;
+  private volatile boolean needSyncFromPeer = true;
   @Setter
   @Getter
-  private volatile boolean needSyncFromUs;
+  private volatile boolean needSyncFromUs = true;
 
   public void setBlockBothHave(BlockId blockId) {
     this.blockBothHave = blockId;
@@ -108,11 +109,23 @@ public class PeerConnection extends Channel {
     msgQueue.sendMessage(message);
   }
 
+  public void fastSend(Message message) {
+    msgQueue.fastSend(message);
+  }
+
   public void onConnect() {
-    if (getHelloMessage().getHeadBlockId().getNum() > tronNetDelegate.getHeadBlockId().getNum()) {
+    long headBlockNum = tronNetDelegate.getHeadBlockId().getNum();
+    long peerHeadBlockNum = getHelloMessage().getHeadBlockId().getNum();
+
+    if (peerHeadBlockNum > headBlockNum) {
+      needSyncFromUs = false;
       setTronState(TronState.SYNCING);
       syncService.startSync(this);
     } else {
+      needSyncFromPeer = false;
+      if (peerHeadBlockNum == headBlockNum) {
+        needSyncFromUs = false;
+      }
       setTronState(TronState.SYNC_COMPLETED);
     }
   }
@@ -132,32 +145,6 @@ public class PeerConnection extends Channel {
 
   public String log() {
     long now = System.currentTimeMillis();
-//    logger.info("Peer {}:{} [ {}, ping {} ms]-----------\n"
-//            + "connect time: {}\n"
-//            + "last know block num: {}\n"
-//            + "needSyncFromPeer:{}\n"
-//            + "needSyncFromUs:{}\n"
-//            + "syncToFetchSize:{}\n"
-//            + "syncToFetchSizePeekNum:{}\n"
-//            + "syncBlockRequestedSize:{}\n"
-//            + "remainNum:{}\n"
-//            + "syncChainRequested:{}\n"
-//            + "blockInProcess:{}\n"
-//            + "{}",
-//        this.getNode().getHost(), this.getNode().getPort(), this.getNode().getHexIdShort(),
-//        (int) this.getPeerStats().getAvgLatency(),
-//        (now - super.getStartTime()) / 1000,
-//        blockBothHave.getNum(),
-//        isNeedSyncFromPeer(),
-//        isNeedSyncFromUs(),
-//        syncBlockToFetch.size(),
-//        syncBlockToFetch.size() > 0 ? syncBlockToFetch.peek().getNum() : -1,
-//        syncBlockRequested.size(),
-//        remainNum,
-//        syncChainRequested == null ? 0 : (now - syncChainRequested.getValue()) / 1000,
-//        syncBlockInProcess.size(),
-//        nodeStatistics.toString());
-////
     return String.format(
         "Peer %s [%8s]\n"
             + "ping msg: count %d, max-average-min-last: %d %d %d %d\n"
@@ -176,21 +163,26 @@ public class PeerConnection extends Channel {
 
         getNodeStatistics().pingMessageLatency.getCount(),
         getNodeStatistics().pingMessageLatency.getMax(),
-        getNodeStatistics().pingMessageLatency.getAvrg(),
+        getNodeStatistics().pingMessageLatency.getAvg(),
         getNodeStatistics().pingMessageLatency.getMin(),
         getNodeStatistics().pingMessageLatency.getLast(),
 
-        (now - getStartTime()) / 1000,
+        (now - getStartTime()) / Constant.ONE_THOUSAND,
         fastForwardBlock != null ? fastForwardBlock.getNum() : blockBothHave.getNum(),
         isNeedSyncFromPeer(),
         isNeedSyncFromUs(),
         syncBlockToFetch.size(),
-        syncBlockToFetch.size() > 0 ? syncBlockToFetch.peek().getNum() : -1,
+        !syncBlockToFetch.isEmpty() ? syncBlockToFetch.peek().getNum() : -1,
         syncBlockRequested.size(),
         remainNum,
-        syncChainRequested == null ? 0 : (now - syncChainRequested.getValue()) / 1000,
+        syncChainRequested == null ? 0 : (now - syncChainRequested.getValue()) 
+                / Constant.ONE_THOUSAND,
         syncBlockInProcess.size())
         + nodeStatistics.toString() + "\n";
+  }
+
+  public boolean isSyncFinish() {
+    return !(needSyncFromPeer || needSyncFromUs);
   }
 
 }

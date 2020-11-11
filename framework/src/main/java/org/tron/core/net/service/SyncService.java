@@ -22,13 +22,14 @@ import org.tron.common.overlay.server.Channel.TronState;
 import org.tron.common.utils.Pair;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
-import org.tron.core.config.Parameter.NodeConstant;
+import org.tron.core.config.Parameter.NetConstants;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.P2pException.TypeEnum;
 import org.tron.core.net.TronNetDelegate;
 import org.tron.core.net.message.BlockMessage;
 import org.tron.core.net.message.FetchInvDataMessage;
 import org.tron.core.net.message.SyncBlockChainMessage;
+import org.tron.core.net.messagehandler.PbftDataSyncHandler;
 import org.tron.core.net.peer.PeerConnection;
 import org.tron.protos.Protocol.Inventory.InventoryType;
 import org.tron.protos.Protocol.ReasonCode;
@@ -39,6 +40,9 @@ public class SyncService {
 
   @Autowired
   private TronNetDelegate tronNetDelegate;
+
+  @Autowired
+  private PbftDataSyncHandler pbftDataSyncHandler;
 
   private Map<BlockMessage, PeerConnection> blockWaitToProcess = new ConcurrentHashMap<>();
 
@@ -65,8 +69,8 @@ public class SyncService {
           fetchFlag = false;
           startFetchSyncBlock();
         }
-      } catch (Throwable t) {
-        logger.error("Fetch sync block error.", t);
+      } catch (Exception e) {
+        logger.error("Fetch sync block error.", e);
       }
     }, 10, 1, TimeUnit.SECONDS);
 
@@ -76,8 +80,8 @@ public class SyncService {
           handleFlag = false;
           handleSyncBlock();
         }
-      } catch (Throwable t) {
-        logger.error("Handle sync block error.", t);
+      } catch (Exception e) {
+        logger.error("Handle sync block error.", e);
       }
     }, 10, 1, TimeUnit.SECONDS);
   }
@@ -118,7 +122,7 @@ public class SyncService {
     handleFlag = true;
     if (peer.isIdle()) {
       if (peer.getRemainNum() > 0
-          && peer.getSyncBlockToFetch().size() <= NodeConstant.SYNC_FETCH_BATCH_NUM) {
+          && peer.getSyncBlockToFetch().size() <= NetConstants.SYNC_FETCH_BATCH_NUM) {
         syncNext(peer);
       } else {
         fetchFlag = true;
@@ -137,11 +141,11 @@ public class SyncService {
     fetchFlag = true;
   }
 
-  private LinkedList<BlockId> getBlockChainSummary(PeerConnection peer) throws Exception {
+  private LinkedList<BlockId> getBlockChainSummary(PeerConnection peer) throws P2pException {
 
     BlockId beginBlockId = peer.getBlockBothHave();
     List<BlockId> blockIds = new ArrayList<>(peer.getSyncBlockToFetch());
-    LinkedList<BlockId> forkList = new LinkedList<>();
+    List<BlockId> forkList = new LinkedList<>();
     LinkedList<BlockId> summary = new LinkedList<>();
     long syncBeginNumber = tronNetDelegate.getSyncBeginNumber();
     long low = syncBeginNumber < 0 ? 0 : syncBeginNumber;
@@ -159,8 +163,8 @@ public class SyncService {
           throw new P2pException(TypeEnum.SYNC_FAILED,
               "can't find blockId: " + beginBlockId.getString());
         }
-        highNoFork = forkList.peekLast().getNum();
-        forkList.pollLast();
+        highNoFork = ((LinkedList<BlockId>) forkList).peekLast().getNum();
+        ((LinkedList) forkList).pollLast();
         Collections.reverse(forkList);
         high = highNoFork + forkList.size();
       }
@@ -259,7 +263,8 @@ public class SyncService {
     boolean flag = true;
     BlockId blockId = block.getBlockId();
     try {
-      tronNetDelegate.processBlock(block);
+      tronNetDelegate.processBlock(block, true);
+      pbftDataSyncHandler.processPBFTCommitData(block);
     } catch (Exception e) {
       logger.error("Process sync block {} failed.", blockId.getString(), e);
       flag = false;

@@ -1,7 +1,6 @@
 package org.tron.core.services.http;
 
 import com.alibaba.fastjson.JSONObject;
-import java.io.IOException;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -27,25 +26,17 @@ public class UpdateAccountServlet extends RateLimiterServlet {
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String contract = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(contract);
-      boolean visible = Util.getVisiblePost(contract);
+      PostParams params = PostParams.getPostParams(request);
       AccountUpdateContract.Builder build = AccountUpdateContract.newBuilder();
-      JsonFormat.merge(contract, build, visible);
+      JsonFormat.merge(params.getParams(), build, params.isVisible());
       Transaction tx = wallet
           .createTransactionCapsule(build.build(), ContractType.AccountUpdateContract)
           .getInstance();
-      JSONObject jsonObject = JSONObject.parseObject(contract);
+      JSONObject jsonObject = JSONObject.parseObject(params.getParams());
       tx = Util.setTransactionPermissionId(jsonObject, tx);
-      response.getWriter().println(Util.printCreateTransaction(tx, visible));
+      response.getWriter().println(Util.printCreateTransaction(tx, params.isVisible()));
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 }

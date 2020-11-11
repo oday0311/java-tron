@@ -22,23 +22,12 @@ public class GetExchangeByIdServlet extends RateLimiterServlet {
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
-      JSONObject jsonObject = JSONObject.parseObject(input);
+      PostParams params = PostParams.getPostParams(request);
+      JSONObject jsonObject = JSONObject.parseObject(params.getParams());
       long id = Util.getJsonLongValue(jsonObject, "id", true);
-      response.getWriter()
-          .println(JsonFormat
-              .printToString(wallet.getExchangeById(ByteString.copyFrom(ByteArray.fromLong(id))),
-                  visible));
+      fillResponse(params.isVisible(), id, response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
@@ -46,17 +35,15 @@ public class GetExchangeByIdServlet extends RateLimiterServlet {
     try {
       boolean visible = Util.getVisible(request);
       String input = request.getParameter("id");
-      response.getWriter()
-          .println(JsonFormat.printToString(wallet
-                  .getExchangeById(ByteString.copyFrom(ByteArray.fromLong(Long.parseLong(input)))),
-              visible));
+      fillResponse(visible, Long.parseLong(input), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
+  }
+
+  private void fillResponse(boolean visible, long id, HttpServletResponse response)
+      throws IOException {
+    response.getWriter().println(JsonFormat.printToString(
+        wallet.getExchangeById(ByteString.copyFrom(ByteArray.fromLong(id))), visible));
   }
 }

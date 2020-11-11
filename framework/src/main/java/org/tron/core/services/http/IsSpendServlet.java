@@ -1,6 +1,5 @@
 package org.tron.core.services.http;
 
-import java.io.IOException;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,23 +24,16 @@ public class IsSpendServlet extends RateLimiterServlet {
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
-
+      PostParams postParams = PostParams.getPostParams(request);
+      boolean visible = postParams.isVisible();
+      String input = postParams.getParams();
       NoteParameters.Builder build = NoteParameters.newBuilder();
       JsonFormat.merge(input, build, visible);
 
       SpendResult result = wallet.isSpend(build.build());
       response.getWriter().println(JsonFormat.printToString(result, visible));
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 }

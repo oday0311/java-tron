@@ -2,8 +2,9 @@ package org.tron.core.actuator;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.utils.Commons;
+import org.tron.common.utils.DecodeUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.exception.ContractExeException;
@@ -21,7 +22,13 @@ public class UpdateAccountActuator extends AbstractActuator {
   }
 
   @Override
-  public boolean execute(TransactionResultCapsule ret) throws ContractExeException {
+  public boolean execute(Object result) throws ContractExeException {
+
+    TransactionResultCapsule ret = (TransactionResultCapsule) result;
+    if (Objects.isNull(ret)) {
+      throw new RuntimeException(ActuatorConstant.TX_RESULT_NULL);
+    }
+
     final AccountUpdateContract accountUpdateContract;
     final long fee = calcFee();
     try {
@@ -47,15 +54,15 @@ public class UpdateAccountActuator extends AbstractActuator {
   @Override
   public boolean validate() throws ContractValidateException {
     if (this.any == null) {
-      throw new ContractValidateException("No contract!");
+      throw new ContractValidateException(ActuatorConstant.CONTRACT_NOT_EXIST);
     }
     if (chainBaseManager == null) {
-      throw new ContractValidateException("No account store or dynamic store!");
+      throw new ContractValidateException(ActuatorConstant.STORE_NOT_EXIST);
     }
 
     if (!this.any.is(AccountUpdateContract.class)) {
       throw new ContractValidateException(
-          "contract type error, expected type [AccountUpdateContract], real type[" + contract
+          "contract type error, expected type [AccountUpdateContract], real type[" + any
               .getClass() + "]");
     }
     final AccountUpdateContract accountUpdateContract;
@@ -70,7 +77,7 @@ public class UpdateAccountActuator extends AbstractActuator {
     if (!TransactionUtil.validAccountName(accountName)) {
       throw new ContractValidateException("Invalid accountName");
     }
-    if (!Commons.addressValid(ownerAddress)) {
+    if (!DecodeUtil.addressValid(ownerAddress)) {
       throw new ContractValidateException("Invalid ownerAddress");
     }
 

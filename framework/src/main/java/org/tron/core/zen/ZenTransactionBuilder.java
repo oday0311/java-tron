@@ -22,7 +22,6 @@ import org.tron.core.capsule.ReceiveDescriptionCapsule;
 import org.tron.core.capsule.SpendDescriptionCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.exception.ZksnarkException;
-import org.tron.core.utils.TransactionUtil;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.PaymentAddress;
@@ -51,6 +50,10 @@ public class ZenTransactionBuilder {
 
   @Getter
   private long valueBalance = 0;
+
+  @Setter
+  @Getter
+  private long timeout = 0;
 
   @Getter
   private ShieldedTransferContract.Builder contractBuilder = ShieldedTransferContract.newBuilder();
@@ -151,9 +154,9 @@ public class ZenTransactionBuilder {
       // Empty output script
       byte[] dataHashToBeSigned; //256
       transactionCapsule = wallet.createTransactionCapsuleWithoutValidate(
-          contractBuilder.build(), ContractType.ShieldedTransferContract);
+          contractBuilder.build(), ContractType.ShieldedTransferContract, timeout);
 
-      dataHashToBeSigned = TransactionUtil
+      dataHashToBeSigned = TransactionCapsule
           .getShieldTransactionHashIgnoreTypeException(transactionCapsule.getInstance());
 
       if (dataHashToBeSigned == null) {
@@ -286,6 +289,10 @@ public class ZenTransactionBuilder {
             cv,
             zkProof))) {
       throw new ZksnarkException("Output proof failed");
+    }
+
+    if (ArrayUtils.isEmpty(output.ovk) || output.ovk.length != 32) {
+      throw new ZksnarkException("ovk is null or invalid and ovk should be 32 bytes (256 bit)");
     }
 
     ReceiveDescriptionCapsule receiveDescriptionCapsule = new ReceiveDescriptionCapsule();

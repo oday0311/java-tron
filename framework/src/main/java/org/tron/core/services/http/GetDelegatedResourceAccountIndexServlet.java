@@ -3,7 +3,6 @@ package org.tron.core.services.http;
 import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -29,30 +28,17 @@ public class GetDelegatedResourceAccountIndexServlet extends RateLimiterServlet 
       if (visible) {
         address = Util.getHexAddress(address);
       }
-      DelegatedResourceAccountIndex reply =
-          wallet.getDelegatedResourceAccountIndex(
-              ByteString.copyFrom(ByteArray.fromHexString(address)));
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      fillResponse(ByteString.copyFrom(ByteArray.fromHexString(address)), visible, response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
+      boolean visible = params.isVisible();
+      String input = params.getParams();
       if (visible) {
         JSONObject jsonObject = JSONObject.parseObject(input);
         String value = jsonObject.getString("value");
@@ -62,20 +48,21 @@ public class GetDelegatedResourceAccountIndexServlet extends RateLimiterServlet 
 
       BytesMessage.Builder build = BytesMessage.newBuilder();
       JsonFormat.merge(input, build, visible);
-      DelegatedResourceAccountIndex reply =
-          wallet.getDelegatedResourceAccountIndex(build.getValue());
-      if (reply != null) {
-        response.getWriter().println(JsonFormat.printToString(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+
+      fillResponse(build.getValue(), visible, response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
+    }
+  }
+
+  private void fillResponse(ByteString address, boolean visible, HttpServletResponse response)
+      throws IOException {
+    DelegatedResourceAccountIndex reply =
+        wallet.getDelegatedResourceAccountIndex(address);
+    if (reply != null) {
+      response.getWriter().println(JsonFormat.printToString(reply, visible));
+    } else {
+      response.getWriter().println("{}");
     }
   }
 }

@@ -132,7 +132,7 @@ public class AttackSendcoin {
     transaction = TransactionUtils.sign(transaction, ecKey);
     Return response = blockingStubFull.broadcastTransaction(transaction);
 
-    if (response.getResult() == false) {
+    if (!response.getResult()) {
       logger.info(ByteArray.toStr(response.getMessage().toByteArray()));
       return false;
     }
@@ -409,7 +409,7 @@ public class AttackSendcoin {
 
     BalanceContract.WithdrawBalanceContract.Builder builder =
         BalanceContract.WithdrawBalanceContract
-        .newBuilder();
+            .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddreess);
     BalanceContract.WithdrawBalanceContract contract = builder.build();

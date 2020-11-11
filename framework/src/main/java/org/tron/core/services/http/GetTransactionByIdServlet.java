@@ -25,44 +25,30 @@ public class GetTransactionByIdServlet extends RateLimiterServlet {
     try {
       boolean visible = Util.getVisible(request);
       String input = request.getParameter("value");
-      Transaction reply = wallet
-          .getTransactionById(ByteString.copyFrom(ByteArray.fromHexString(input)));
-      if (reply != null) {
-        response.getWriter().println(Util.printTransaction(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      fillResponse(ByteString.copyFrom(ByteArray.fromHexString(input)), visible, response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
       BytesMessage.Builder build = BytesMessage.newBuilder();
-      JsonFormat.merge(input, build, visible);
-      Transaction reply = wallet.getTransactionById(build.getValue());
-      if (reply != null) {
-        response.getWriter().println(Util.printTransaction(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      JsonFormat.merge(params.getParams(), build, params.isVisible());
+      fillResponse(build.getValue(), params.isVisible(), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
+    }
+  }
+
+  private void fillResponse(ByteString txId, boolean visible, HttpServletResponse response)
+      throws IOException {
+    Transaction reply = wallet.getTransactionById(txId);
+    if (reply != null) {
+      response.getWriter().println(Util.printTransaction(reply, visible));
+    } else {
+      response.getWriter().println("{}");
     }
   }
 }

@@ -2,7 +2,6 @@ package org.tron.core.services.http;
 
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -25,43 +24,30 @@ public class GetBlockByIdServlet extends RateLimiterServlet {
     try {
       boolean visible = Util.getVisible(request);
       String input = request.getParameter("value");
-      Block reply = wallet.getBlockById(ByteString.copyFrom(ByteArray.fromHexString(input)));
-      if (reply != null) {
-        response.getWriter().println(Util.printBlock(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      fillResponse(visible, ByteString.copyFrom(ByteArray.fromHexString(input)), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
     }
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) {
     try {
-      String input = request.getReader().lines()
-          .collect(Collectors.joining(System.lineSeparator()));
-      Util.checkBodySize(input);
-      boolean visible = Util.getVisiblePost(input);
+      PostParams params = PostParams.getPostParams(request);
       BytesMessage.Builder build = BytesMessage.newBuilder();
-      JsonFormat.merge(input, build, visible);
-      Block reply = wallet.getBlockById(build.getValue());
-      if (reply != null) {
-        response.getWriter().println(Util.printBlock(reply, visible));
-      } else {
-        response.getWriter().println("{}");
-      }
+      JsonFormat.merge(params.getParams(), build, params.isVisible());
+      fillResponse(params.isVisible(), build.getValue(), response);
     } catch (Exception e) {
-      logger.debug("Exception: {}", e.getMessage());
-      try {
-        response.getWriter().println(Util.printErrorMsg(e));
-      } catch (IOException ioe) {
-        logger.debug("IOException: {}", ioe.getMessage());
-      }
+      Util.processError(e, response);
+    }
+  }
+
+  private void fillResponse(boolean visible, ByteString blockId, HttpServletResponse response)
+      throws IOException {
+    Block reply = wallet.getBlockById(blockId);
+    if (reply != null) {
+      response.getWriter().println(Util.printBlock(reply, visible));
+    } else {
+      response.getWriter().println("{}");
     }
   }
 }

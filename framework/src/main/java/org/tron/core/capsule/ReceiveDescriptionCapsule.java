@@ -39,7 +39,6 @@ public class ReceiveDescriptionCapsule implements ProtoCapsule<ReceiveDescriptio
             .setNoteCommitment(cm)
             .setEpk(ephemeralKey)
             .setCEnc(encCiphertext)
-            .setCEnc(encCiphertext)
             .setCOut(outCiphertext)
             .setZkproof(zkproof)
             .build();
@@ -49,13 +48,13 @@ public class ReceiveDescriptionCapsule implements ProtoCapsule<ReceiveDescriptio
     return this.receiveDescription.getValueCommitment();
   }
 
-  public void setValueCommitment(ByteString bytes) {
-    this.receiveDescription = this.receiveDescription.toBuilder().setValueCommitment(bytes).build();
-  }
-
   public void setValueCommitment(byte[] bytes) {
     this.receiveDescription =
         this.receiveDescription.toBuilder().setValueCommitment(ByteString.copyFrom(bytes)).build();
+  }
+
+  public void setValueCommitment(ByteString bytes) {
+    this.receiveDescription = this.receiveDescription.toBuilder().setValueCommitment(bytes).build();
   }
 
   public ByteString getEphemeralKey() {
@@ -114,13 +113,13 @@ public class ReceiveDescriptionCapsule implements ProtoCapsule<ReceiveDescriptio
     return this.receiveDescription.getZkproof();
   }
 
-  public void setZkproof(ByteString proof) {
-    this.receiveDescription = this.receiveDescription.toBuilder().setZkproof(proof).build();
-  }
-
   public void setZkproof(byte[] proof) {
     ByteString proof1 = ByteString.copyFrom(proof);
     this.receiveDescription = this.receiveDescription.toBuilder().setZkproof(proof1).build();
+  }
+
+  public void setZkproof(ByteString proof) {
+    this.receiveDescription = this.receiveDescription.toBuilder().setZkproof(proof).build();
   }
 
   @Override

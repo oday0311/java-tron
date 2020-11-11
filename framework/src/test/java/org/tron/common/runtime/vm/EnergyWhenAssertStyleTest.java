@@ -48,7 +48,7 @@ public class EnergyWhenAssertStyleTest {
    */
   @Before
   public void init() {
-    Args.setParam(new String[] {"--output-directory", dbPath, "--debug"}, Constant.TEST_CONF);
+    Args.setParam(new String[]{"--output-directory", dbPath, "--debug"}, Constant.TEST_CONF);
     context = new TronApplicationContext(DefaultConfig.class);
     AppT = ApplicationFactory.create(context);
     OWNER_ADDRESS = Wallet.getAddressPreFixString() + "abd4b9367799eaa3197fecb144eb71de1e049abc";
@@ -595,8 +595,6 @@ public class EnergyWhenAssertStyleTest {
   @After
   public void destroy() {
     Args.clearParam();
-    AppT.shutdownServices();
-    AppT.shutdown();
     context.destroy();
     if (FileUtil.deleteDir(new File(dbPath))) {
       logger.info("Release resources successful.");

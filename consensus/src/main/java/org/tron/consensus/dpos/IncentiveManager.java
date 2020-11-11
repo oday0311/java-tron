@@ -1,6 +1,6 @@
 package org.tron.consensus.dpos;
 
-import static org.tron.consensus.base.Constant.WITNESS_STANDBY_LENGTH;
+import static org.tron.core.config.Parameter.ChainConstant.WITNESS_STANDBY_LENGTH;
 
 import com.google.protobuf.ByteString;
 import java.util.List;
@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.consensus.ConsensusDelegate;
 import org.tron.core.capsule.AccountCapsule;
-import org.tron.core.capsule.BlockCapsule;
 
 @Slf4j(topic = "consensus")
 @Component
@@ -17,16 +16,6 @@ public class IncentiveManager {
 
   @Autowired
   private ConsensusDelegate consensusDelegate;
-
-  public void applyBlock(BlockCapsule blockCapsule) {
-    if (consensusDelegate.allowChangeDelegation()) {
-      return;
-    }
-    byte[] witness = blockCapsule.getWitnessAddress().toByteArray();
-    AccountCapsule account = consensusDelegate.getAccount(witness);
-    account.setAllowance(account.getAllowance() + consensusDelegate.getWitnessPayPerBlock());
-    consensusDelegate.saveAccount(account);
-  }
 
   public void reward(List<ByteString> witnesses) {
     if (consensusDelegate.allowChangeDelegation()) {
